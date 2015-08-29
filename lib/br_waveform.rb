@@ -4,8 +4,9 @@ private
 	def convert_to_wav
 		# check if file exists?
 		if File.exist? @filename
-			fork { exec "ffmpeg -y -i \"#{@filename}\" -f wav \"#{@filename_without_extension}.wav\"" }
-			File.delete(@filename)
+			puts "BrWaveForm: Converting #{@filename} to #{@filename_without_extension}.wav"
+			`ffmpeg -y -i "#{@filename}" -f wav "#{@filename_without_extension}.wav" -hide_banner -loglevel quiet`
+			# File.delete(@filename)
 		else
 			raise IOError, "File #{@filename} not found"
 		end
@@ -20,6 +21,7 @@ private
 		require 'wav-file'
 
 		# read wavefile
+		puts "BrWaveForm: Processing #{@filename_without_extension}.wav"
 		f = open("#{@filename_without_extension}.wav")
 		@format = WavFile::readFormat(f)
 
@@ -32,12 +34,13 @@ private
 
 	def spectrum_data numberOfBar
 
+		puts "BrWaveForm: Processing waveform"
 		wavs = read_wav
 
 		@spectrum_array = []
 
 		samples = (wavs.length / numberOfBar).to_i
-		puts @format
+
 		i = 0
 		until i > wavs.length
 			istart = i
