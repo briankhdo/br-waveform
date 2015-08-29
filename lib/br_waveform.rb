@@ -60,6 +60,8 @@ private
 			@spectrum_array.push(avg)
 			i += samples
 		end
+		# clean up wav
+		File.delete("#{@filename_without_extension}.wav")
 
 		@spectrum_array
 	end
@@ -72,7 +74,7 @@ public
 	# generate waveform png
 	def generate filename, numberOfBar: 100
 		data = spectrum_data numberOfBar
-		puts data
 		# generate png
+
 	end
 end
