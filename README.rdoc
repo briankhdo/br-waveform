@@ -11,6 +11,14 @@ Generate waveform using wavefile gem to read converted wav file by ffmpeg
   waveform = BrWaveForm.new("my_song.mp3")
   waveform.generate "my_song_waveform.png"
 
+== Params
+* *filename*. Output filename (waveform.png) (required)
+* *height*. Height of the waveform in pixel. Default: 60
+* *numberOfBar*. Total bar generated from wav file. Default: 100
+* *barWidth*. Set bar width. Default: 4
+* *spacing*. Set bar spacing. Default: 2
+* *flip*. Set bar flip. If flipped, the bar will be drawn from the top, otherwise from the bottom. Default: false
+
 == License
 Copyright (C) 2015 *Brian Doan*
 
