@@ -4,9 +4,9 @@ private
 	def convert_to_wav
 		# check if file exists?
 		if File.exist? @filename
-			puts "BrWaveForm: Converting #{@filename} to #{@filename_without_extension}.wav"
+			puts "BrWaveForm: Converting #{@filename} to #{@filename_without_extension}.wav" if @debug
 			`ffmpeg -y -i "#{@filename}" -f wav "#{@filename_without_extension}.wav" -hide_banner -loglevel quiet`
-			# File.delete(@filename)
+			File.delete(@filename)
 		else
 			raise IOError, "File #{@filename} not found"
 		end
@@ -21,7 +21,7 @@ private
 		require 'wav-file'
 
 		# read wavefile
-		puts "BrWaveForm: Processing #{@filename_without_extension}.wav"
+		puts "BrWaveForm: Processing #{@filename_without_extension}.wav" if @debug
 		f = open("#{@filename_without_extension}.wav")
 		@format = WavFile::readFormat(f)
 
@@ -34,7 +34,7 @@ private
 
 	def spectrum_data numberOfBar
 
-		puts "BrWaveForm: Processing waveform"
+		puts "BrWaveForm: Processing waveform" if @debug
 		wavs = read_wav
 
 		@spectrum_array = []
@@ -69,69 +69,88 @@ private
 		@spectrum_array
 	end
 public
+	@debug = false
+
 	def initialize filename
 		@filename = filename
 		@filename_without_extension = File.basename(@filename, File.extname(@filename))
 	end
 
 	# generate waveform png
-	def generate filename, numberOfBar: 100
-		data = spectrum_data numberOfBar
+	def generate filename, height: 60, numberOfBar: 100, barWidth: 4, spacing: 2, flip: false
+
+		if barWidth < 1
+			raise ArgumentError, "barWidth must be larger than 0"
+		end
+
+		if spacing < 1
+			raise ArgumentError, "spacing must be larger than 0"
+		end
+
+		waveform_array = spectrum_data numberOfBar
+
 		# generate png
+		puts "BrWaveForm: Generating #{filename}" if @debug
+		waveform_array = waveform_array[0..(numberOfBar-1)]
 
-		array = array[0..(numberOfBar-1)]
-		# clean up files
-		puts "[ProcessVideos] cleaning up files #{filename}, #{filename}.wav"
-		File.delete(filename + ".wav")
-		puts "[ProcessVideos] done cleaning up files"
+		gem 'chunky_png'
+		require 'chunky_png'
 
-		max = array.max
+		max = waveform_array.max
 		width = numberOfBar * 4 + (numberOfBar - 1) * 2
-		png = ChunkyPNG::Image.new(width, 56, ChunkyPNG::Color::TRANSPARENT)
+		png = ChunkyPNG::Image.new(width, height, ChunkyPNG::Color::TRANSPARENT)
 		x = 0
-		array.each do |d|
+		puts
+		waveform_array.each do |d|
 			# drawing 4px bar
 			# calc start y
-			(1..4).each do |i|
-				maxY = ((d / max) * 54).to_i + 1
+			(1..barWidth).each do |i|
+				maxY = ((d / max) * height - 2).to_i + 1
+				maxY = ((1 - d / max) * height - 2).to_i + 1 if !flip
 				y = -1
-				until y == maxY
+				y = maxY if !flip
+				stopY = maxY
+				stopY = height - 1 if !flip
+				until y == stopY
+					# puts "#{x},#{y}"
 					y += 1
-					if y < maxY - 2
-						png[x, y] = ChunkyPNG::Color::rgba(255, 255, 255, 255)
-					end
+
+					puts "Y: #{y}, MaxY: #{maxY}, StopY: #{stopY}"
+
+					# if y < stopY - 2 && flip || y > maxY + 2 && !flip
+					png[x, y] = ChunkyPNG::Color::rgba(255, 255, 255, 255)
+					# end
 					# draw circle
-					if y == maxY - 2
-						if i == 1 || i == 4
-							png[x, y] = ChunkyPNG::Color::rgba(255, 255, 255, 247)
-						else
-							png[x, y] = ChunkyPNG::Color::rgba(255, 255, 255, 255)
-						end
-					end
-					if y == maxY - 1
-						if i == 1 || i == 4
-							# transparent level 1
-							png[x, y] = ChunkyPNG::Color::rgba(254, 254, 254, 158)
-						else
-							png[x, y] = ChunkyPNG::Color::rgba(255, 255, 255, 255)
-						end
-					end
-					if y == maxY
-						if i == 2 || i == 3
-							# transparent level 2
-							png[x, y] = ChunkyPNG::Color::rgba(253, 253, 253, 79)
-						end
-					end
+					# if y == stopY - 2 && flip || y == maxY + 3 && !flip
+					# 	if i == 1 || i == 4
+					# 		png[x, y] = ChunkyPNG::Color::rgba(255, 255, 255, 247)
+					# 	else
+					# 		png[x, y] = ChunkyPNG::Color::rgba(255, 255, 255, 255)
+					# 	end
+					# end
+					# if y == stopY - 1 && flip || y == maxY + 2 && !flip
+					# 	if i == 1 || i == 4
+					# 		# transparent level 1
+					# 		png[x, y] = ChunkyPNG::Color::rgba(254, 254, 254, 158)
+					# 	else
+					# 		png[x, y] = ChunkyPNG::Color::rgba(255, 255, 255, 255)
+					# 	end
+					# end
+					# if y == stopY && flip || y == maxY + 1 && !flip
+					# 	if i == 2 || i == 3
+					# 		# transparent level 2
+					# 		png[x, y] = ChunkyPNG::Color::rgba(253, 253, 253, 79)
+					# 	end
+					# end
 				end
 				# move to next column
 				x += 1
 			end
 			# move to next column with spacing
-			x += 2
+			x += spacing
 		end
-		pngFilename = "waveform-#{youtubeId}-#{Time.now.to_i}.png"
-		png.save(pngFilename, :interlace => true)
+		png.save(filename, :interlace => true)
 
-		puts 
+		puts "BrWaveForm: PNG generated #{filename}"
 	end
 end
