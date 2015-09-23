@@ -1,5 +1,7 @@
 module WavSpectrum
-	def self.read(filename)
+	def self.read(filename, numberOfBar)
+		numberOfBar ||= 97
+
 		f = File.open(filename)
 		f.binmode
 		f.seek(0)
@@ -20,7 +22,6 @@ module WavSpectrum
 		@bitPerSample = formatData.slice(14,2).unpack('c')[0]
 		# seek back
 		@samples = 0
-		numberOfBar = 97
 		bars = []
 		currentBar = 0.0
 		index = 0
@@ -81,7 +82,7 @@ private
 
 		puts "BrWaveForm: Processing waveform" if @debug
 
-		@spectrum_array = WavSpectrum.read("#{@filename_without_extension}.wav")
+		@spectrum_array = WavSpectrum.read("#{@filename_without_extension}.wav", numberOfBar)
 
 		# clean up wav
 		File.delete("#{@filename_without_extension}.wav")
