@@ -1,3 +1,68 @@
+module WavSpectrum
+	def self.read(filename)
+		f = File.open(filename)
+		f.binmode
+		f.seek(0)
+		header = f.read(12)
+		riff = header.slice(0,4)
+		data_size = header.slice(4,4).unpack('V')[0].to_i
+		wave = header.slice(8,4)
+		raise(WavFormatError) if riff != 'RIFF' or wave != 'WAVE'
+		@name = f.read(4)
+		@size = f.read(4).unpack("V")[0].to_i
+		# read format data
+		formatData = f.read(16)
+		@id = formatData.slice(0,2).unpack('c')[0]
+		@channel = formatData.slice(2,2).unpack('c')[0]
+		@hz = formatData.slice(4,4).unpack('V').join.to_i
+		@bytePerSec = formatData.slice(8,4).unpack('V').join.to_i
+		@blockSize = formatData.slice(12,2).unpack('c')[0]
+		@bitPerSample = formatData.slice(14,2).unpack('c')[0]
+		# seek back
+		@samples = 0
+		numberOfBar = 97
+		bars = []
+		currentBar = 0.0
+		index = 0
+		bit = 's*' if @bitPerSample == 16 # int16_t
+		bit = 'c*' if @bitPerSample == 8 # signed char
+		data = false
+		while !f.eof?
+			if !data
+				@name = f.read(4)
+				@size = f.read(4).unpack("V")[0].to_i
+			end
+			if @name == "data" || data
+				data = true
+				# calc sample
+				if @samples == 0
+					@samples = (@size / numberOfBar).to_i
+					puts @samples
+				end
+				if index < @samples
+					@data = f.read(2)
+					unless @data.nil?
+						arr = @data.unpack(bit)
+						arr.each do |v|
+							currentBar += v.abs
+						end
+						index += 2
+					end
+				else
+					bars.push(currentBar / (@samples / 2))
+					currentBar = 0.0
+					index = 0
+				end
+			else
+				f.seek(@size, IO::SEEK_CUR)
+			end
+		end
+
+        max = bars.max
+        bars.map { |v| v /= max }
+	end
+end
+
 class BrWaveForm
 private
 	# Convert audio file to wav for reading
@@ -12,57 +77,12 @@ private
 		end
 	end
 
-	# read wave file
-	def read_wav
-
-		convert_to_wav
-
-		gem 'wav-file'
-		require 'wav-file'
-
-		# read wavefile
-		puts "BrWaveForm: Processing #{@filename_without_extension}.wav" if @debug
-		f = open("#{@filename_without_extension}.wav")
-		@format = WavFile::readFormat(f)
-
-		dataChunk = WavFile::readDataChunk(f)
-		f.close
-		bit = 's*' if @format.bitPerSample == 16 # int16_t
-		bit = 'c*' if @format.bitPerSample == 8 # signed char
-		wavs = dataChunk.data.unpack(bit) # read binary
-	end
-
 	def spectrum_data numberOfBar
 
 		puts "BrWaveForm: Processing waveform" if @debug
-		wavs = read_wav
 
-		@spectrum_array = []
+		@spectrum_array = WavSpectrum.read("#{@filename_without_extension}.wav")
 
-		samples = (wavs.length / numberOfBar).to_i
-
-		i = 0
-		until i > wavs.length
-			istart = i
-			iend = i + samples
-			pos = []
-			wavs[istart..iend].each do |v|
-				pos.push(v.abs)
-			end
-			avg = 0
-			unless pos.length == 0
-				avg = (pos.inject{ |sum, el| sum + el }.to_f / pos.size.to_f) / 32768.0
-			else
-				break
-			end
-
-			# increase
-			avg *= 1.2
-
-			avg = 1 if avg > 1
-			@spectrum_array.push(avg)
-			i += samples
-		end
 		# clean up wav
 		File.delete("#{@filename_without_extension}.wav")
 
