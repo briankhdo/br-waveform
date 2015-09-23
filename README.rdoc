@@ -1,5 +1,7 @@
 = Br-Waveform
-Generate waveform using wavefile gem to read converted wav file by ffmpeg
+Generate waveform using wav-file gem to read converted wav file by ffmpeg
+=== Update
+Rewrite wav reader to be able to read GBs files without memory overload by reading and calculating and adding bars at the same time
 
 == Install
 
